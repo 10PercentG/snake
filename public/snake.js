@@ -12,18 +12,33 @@ class SnakeGame extends Phaser.Scene {
     }
   
     create() {
-      // Reset game state
+      // --- RESET GAME STATE ---
       this.isGameOver = false;
       this.score = 0;
-      this.snake = [{ x: 10, y: 10 }];
+      this.snake = [{ x: 10, y: 10 }]; // Starting position for snake
       this.direction = 'RIGHT';
       this.newDirection = 'RIGHT';
       this.unitSize = 20;
   
+      // Destroy previous graphics or text if they exist
+      if (this.graphics) {
+        this.graphics.destroy();
+      }
+      this.graphics = this.add.graphics();
+  
+      if (this.scoreText) {
+        this.scoreText.destroy();
+      }
+      this.scoreText = this.add.text(10, 10, 'Score: 0', { font: '20px Arial', fill: '#fff' });
+  
+      // Remove any previous keyboard listeners to prevent duplicates
+      this.input.keyboard.removeAllListeners();
+  
+      // --- SETUP THE GAME SCENE ---
       // Set background color
       this.cameras.main.setBackgroundColor('#000');
-      
-      // Draw a neon grid over the background for extra effect
+  
+      // Draw neon grid for extra visual flair
       this.drawNeonGrid();
   
       // Spawn the initial food
@@ -49,15 +64,15 @@ class SnakeGame extends Phaser.Scene {
       });
   
       // Create a timer event for snake movement
+      if (this.timer) {
+        this.timer.remove();
+      }
       this.timer = this.time.addEvent({
         delay: 100,
         callback: this.moveSnake,
         callbackScope: this,
         loop: true
       });
-  
-      // Display score text
-      this.scoreText = this.add.text(10, 10, 'Score: 0', { font: '20px Arial', fill: '#fff' });
     }
   
     drawNeonGrid() {
@@ -90,23 +105,19 @@ class SnakeGame extends Phaser.Scene {
       const foodPixelY = foodY * this.unitSize + this.unitSize / 2;
   
       // Remove existing food sprites if they exist
-      if (this.foodSprite) {
-        this.foodSprite.destroy();
-      }
-      if (this.foodGlow) {
-        this.foodGlow.destroy();
-      }
+      if (this.foodSprite) this.foodSprite.destroy();
+      if (this.foodGlow) this.foodGlow.destroy();
   
       // Add main food sprite
       this.foodSprite = this.add.image(foodPixelX, foodPixelY, 'food');
       this.foodSprite.setBlendMode(Phaser.BlendModes.ADD);
-      
-      // Add a larger duplicate for a neon glow effect behind the food sprite
+  
+      // Add a duplicate "glow" sprite behind the food
       this.foodGlow = this.add.image(foodPixelX, foodPixelY, 'food');
       this.foodGlow.setBlendMode(Phaser.BlendModes.ADD);
       this.foodGlow.setScale(1.5);
       this.foodGlow.setAlpha(0.5);
-      
+  
       // Apply a pulsating tween to both food sprites
       this.tweens.add({
         targets: [this.foodSprite, this.foodGlow],
@@ -118,7 +129,7 @@ class SnakeGame extends Phaser.Scene {
     }
   
     moveSnake() {
-      // Determine new head position based on current direction
+      // Calculate new head position based on current direction
       const head = { ...this.snake[0] };
       switch (this.newDirection) {
         case 'UP': head.y -= 1; break;
@@ -126,20 +137,21 @@ class SnakeGame extends Phaser.Scene {
         case 'LEFT': head.x -= 1; break;
         case 'RIGHT': head.x += 1; break;
       }
-      // Wrap around screen edges
+  
+      // Wrap snake around screen edges
       head.x = Phaser.Math.Wrap(head.x, 0, Math.floor(this.sys.game.config.width / this.unitSize));
       head.y = Phaser.Math.Wrap(head.y, 0, Math.floor(this.sys.game.config.height / this.unitSize));
-      
+  
       // Check for self-collision
       if (this.snake.some(segment => segment.x === head.x && segment.y === head.y)) {
         this.gameOver();
         return;
       }
-      
+  
       // Add new head to the snake
       this.snake.unshift(head);
-      
-      // Check if the snake eats the food
+  
+      // Check if snake eats the food
       if (head.x === this.foodGrid.x && head.y === this.foodGrid.y) {
         this.score += 10;
         this.scoreText.setText('Score: ' + this.score);
@@ -151,28 +163,25 @@ class SnakeGame extends Phaser.Scene {
     }
   
     drawGame() {
-      if (this.graphics) {
-        this.graphics.clear();
-      } else {
-        this.graphics = this.add.graphics();
-      }
-      
-      // Define neon colors for the snake gradient (neon green to neon cyan)
+      // Clear the graphics object
+      this.graphics.clear();
+  
+      // Define neon gradient colors for the snake (neon green to neon cyan)
       const neonStart = new Phaser.Display.Color(57, 255, 20); // neon green
-      const neonEnd   = new Phaser.Display.Color(0, 255, 255); // neon cyan
-      
-      // Draw each snake segment with a glow effect
+      const neonEnd = new Phaser.Display.Color(0, 255, 255);    // neon cyan
+  
+      // Draw each snake segment with glow effect
       for (let i = 0; i < this.snake.length; i++) {
         const segment = this.snake[i];
         const color = Phaser.Display.Color.Interpolate.ColorWithColor(neonStart, neonEnd, this.snake.length, i);
         const hex = Phaser.Display.Color.GetColor(color.r, color.g, color.b);
         const x = segment.x * this.unitSize;
         const y = segment.y * this.unitSize;
-        
+  
         // Draw a larger, semi-transparent rectangle for the glow effect
         this.graphics.fillStyle(hex, 0.3);
         this.graphics.fillRect(x - 2, y - 2, this.unitSize + 4, this.unitSize + 4);
-        
+  
         // Draw the main snake segment
         this.graphics.fillStyle(hex, 1);
         this.graphics.fillRect(x, y, this.unitSize - 1, this.unitSize - 1);
@@ -183,7 +192,7 @@ class SnakeGame extends Phaser.Scene {
       this.isGameOver = true;
       // Stop the snake movement timer
       this.timer.remove();
-      
+  
       // Display a neon-style "GAME OVER" message
       this.add.text(
         this.sys.game.config.width / 2,
@@ -191,14 +200,14 @@ class SnakeGame extends Phaser.Scene {
         'GAME OVER',
         { font: '40px Arial', fill: '#ff00ff', stroke: '#00ffff', strokeThickness: 4 }
       ).setOrigin(0.5);
-      
+  
       // Automatically restart the game after 2 seconds
       this.time.delayedCall(2000, () => this.scene.restart());
     }
   
     update() {
       if (!this.isGameOver) {
-        // Update the direction and redraw the snake on each frame
+        // Update the snake's direction and redraw it on each frame
         this.direction = this.newDirection;
         this.drawGame();
       }
